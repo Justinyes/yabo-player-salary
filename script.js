@@ -4,15 +4,21 @@ let players=[];let selected=[];let teams=JSON.parse(localStorage.getItem('yaboTe
 let role=sessionStorage.getItem('yaboRoleV3')||'';
 const $=id=>document.getElementById(id);
 async function init(){
-  const saved = localStorage.getItem('yaboPlayersV2');
-  if(saved){
-    try{ players = JSON.parse(saved) || []; }catch(e){ players = []; }
-  }
-  if(!players.length){
-    players = DEFAULT_PLAYERS.slice();
-    // Safari/Chrome 直接 file:// 打开时可能禁止读取 players.json，所以这里内置默认名单，保证一打开就有数据。
-  }
+  localStorage.removeItem('yaboPlayersV2');
+  players = await loadPublishedPlayers();
   bind();renderAll();updateAuthUI();
+}
+async function loadPublishedPlayers(){
+  try{
+    const response=await fetch(`players.json?v=${Date.now()}`,{cache:'no-store'});
+    if(!response.ok)throw new Error('价格库读取失败');
+    const data=await response.json();
+    if(!Array.isArray(data)||!data.length)throw new Error('价格库格式错误');
+    return data;
+  }catch(e){
+    // 直接双击以 file:// 打开时，部分浏览器不允许读取 JSON，保留内置名单作为离线备用。
+    return DEFAULT_PLAYERS.slice();
+  }
 }
 function isAdmin(){return role==='admin'}
 function bind(){['baseCap','roundBonus','currentCap'].forEach(id=>$(id).addEventListener('input',renderAll));$('search').addEventListener('input',renderPlayers);$('resetBtn').onclick=resetPlayers;$('exportBtn').onclick=exportJson;$('saveTeam').onclick=saveTeam;$('importBtn').onclick=()=>importPlayers(false);$('mergeBtn').onclick=()=>importPlayers(true);$('adminLoginBtn').onclick=adminLogin;$('guestLoginBtn').onclick=guestLogin;$('openLoginBtn').onclick=openLogin;$('logoutBtn').onclick=logout;$('adminPassword').addEventListener('keydown',e=>{if(e.key==='Enter')adminLogin()})}
@@ -24,7 +30,7 @@ function adminLogin(){if($('adminPassword').value===ADMIN_PASSWORD){setRole('adm
 function logout(){role='';sessionStorage.removeItem('yaboRoleV3');updateAuthUI();renderPlayers();openLogin()}
 function requireAdmin(action='这个操作'){if(isAdmin())return true;alert(`${action}需要管理员登录`);openLogin();return false}
 function updateAuthUI(){const text=isAdmin()?'当前身份：管理员，可以调整价格库':'当前身份：普通用户，只能选人、校验阵容和保存队伍';$('roleText').textContent=role?text:'当前身份：未登录';$('logoutBtn').disabled=!role;['resetBtn','importBtn','mergeBtn'].forEach(id=>$(id).disabled=!isAdmin());$('importText').disabled=!isAdmin();if(!role)openLogin()}
-function savePlayers(){localStorage.setItem('yaboPlayersV2',JSON.stringify(players))}function saveTeams(){localStorage.setItem('yaboTeamsV2',JSON.stringify(teams))}function cap(){return +$('currentCap').value||0}
+function savePlayers(){}function saveTeams(){localStorage.setItem('yaboTeamsV2',JSON.stringify(teams))}function cap(){return +$('currentCap').value||0}
 function renderAll(){ $('capHero').textContent=$('baseCap').value||1500; renderRoadmap(); renderPlayers(); renderSelected(); renderTeams(); }
 function renderRoadmap(){const base=+$('baseCap').value||1500, b=+$('roundBonus').value||300; const stages=[['首轮 / 16进8',base,'1个顶级 + 2个低价'],['第二轮 / 8进4',base+b,'可补1名中档'],['分区决赛 / 4进2',base+b*2,'双核明显'],['总决赛',base+b*3,'顶级阵容对决']]; $('roadmap').innerHTML=stages.map(s=>`<div class="step"><span>${s[0]}</span><strong>${s[1]}</strong><small>${s[2]}</small></div>`).join('')}
 function renderPlayers(){const q=$('search').value.trim().toLowerCase();const tbody=document.querySelector('#playerTable tbody');tbody.innerHTML='';players.filter(p=>(p.name+p.series+p.pos).toLowerCase().includes(q)).forEach((p,i)=>{const real=players.indexOf(p);const tr=document.createElement('tr');tr.innerHTML=`<td><b>${p.name}</b><br><small class="hint">${p.note||''}</small></td><td><span class="tag">${p.series||''}</span></td><td>${p.pos||''}</td><td>${p.market||'未知'}</td><td><input class="price-input" type="number" value="${p.salary}" data-i="${real}" ${isAdmin()?'':'disabled'} title="${isAdmin()?'管理员可修改':'管理员登录后可修改'}"></td><td><button class="add" data-add="${real}">加入</button></td>`;tbody.appendChild(tr)});document.querySelectorAll('.price-input').forEach(inp=>inp.onchange=e=>{if(!requireAdmin('修改比赛薪资')){renderPlayers();return}players[e.target.dataset.i].salary=+e.target.value||0;savePlayers();renderSelected()});document.querySelectorAll('[data-add]').forEach(btn=>btn.onclick=e=>addPlayer(+e.target.dataset.add))}
@@ -33,7 +39,7 @@ function renderSelected(){const box=$('selected');box.innerHTML=selected.length?
 window.removeSel=i=>{selected.splice(i,1);renderSelected()}
 function saveTeam(){if(!selected.length)return alert('请先选择球员');const name=$('teamName').value.trim()||`队伍${teams.length+1}`;teams.push({name,cap:cap(),players:[...selected],total:selected.reduce((s,p)=>s+p.salary,0),time:new Date().toLocaleString()});saveTeams();selected=[];$('teamName').value='';renderAll()}
 function renderTeams(){const box=$('teams');box.innerHTML=teams.length?teams.map((t,i)=>`<div class="team-card"><h3>${t.name}</h3><p>工资帽：${t.cap}｜总薪资：${t.total}</p><p>${t.players.map(p=>p.name+'('+p.salary+')').join('、')}</p><button class="secondary" onclick="delTeam(${i})">删除</button></div>`).join(''):'<p class="hint">暂无保存队伍</p>'}window.delTeam=i=>{teams.splice(i,1);saveTeams();renderTeams()}
-function resetPlayers(){if(!requireAdmin('恢复默认价格库'))return;localStorage.removeItem('yaboPlayersV2');players=DEFAULT_PLAYERS.slice();selected=[];renderAll()}
+async function resetPlayers(){if(!requireAdmin('恢复线上价格库'))return;players=await loadPublishedPlayers();selected=[];renderAll()}
 function inferSalary(raw,name=''){let v=Number(String(raw).replace(/,/g,'')); if(!v)return 30; // 支持旧版数字，如69600
  if(v>=60000)return 900;if(v>=45000)return 850;if(v>=30000)return 800;if(v>=20000)return 700;if(v>=12000)return 600;if(v>=7000)return 500;if(v>=3000)return 350;if(v>=1000)return 200;if(v>=300)return 100;if(v>=90)return 60;return 30}
 function inferSeries(name,sal){if(name.includes('陈列室')||sal>=900)return '陈列室/顶级';if(name.includes('历史')||name.includes('版'))return sal>=700?'高端历史':'历史/收藏';if(sal>=600)return '强力主力';if(sal>=300)return '轮换功能';return '底薪功能'}

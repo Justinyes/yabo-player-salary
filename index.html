@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>津门鸭脖球员薪资软件 V3</title>
-<link rel="stylesheet" href="style.css" />
+<link rel="stylesheet" href="style.css?v=4" />
 </head>
 <body>
 <header class="hero">
@@ -23,7 +23,7 @@
   <div class="login-box">
     <p class="eyebrow">进入软件</p>
     <h2 id="loginTitle">选择登录身份</h2>
-    <p class="hint">普通用户可以选人和保存队伍；管理员登录后才能调整比赛薪资、导入名单和恢复默认价格库。</p>
+    <p class="hint">普通用户可以选人和保存队伍；管理员登录后才能调整比赛薪资、导入名单和恢复线上价格库。</p>
     <label>管理员密码<input id="adminPassword" type="password" placeholder="请输入管理员密码"></label>
     <div id="loginError" class="login-error"></div>
     <div class="login-actions">
@@ -59,7 +59,7 @@
 </section>
 <section class="layout">
   <div class="panel">
-    <div class="section-head"><h2>球员价格库</h2><div class="actions"><input id="search" placeholder="搜索球员/系列/位置"><button id="resetBtn" class="secondary">恢复默认</button><button id="exportBtn" class="secondary">导出JSON</button></div></div>
+    <div class="section-head"><h2>球员价格库</h2><div class="actions"><input id="search" placeholder="搜索球员/系列/位置"><button id="resetBtn" class="secondary">恢复线上名单</button><button id="exportBtn" class="secondary">导出JSON</button></div></div>
     <p class="hint">已按你发的截图微调前排市场价：科比约2190万、13KD约2030万、邓肯约1520万、文班约1460万等。比赛薪资不是直接照搬市场价，而是按赛事观赏性压缩成 900/800/700/600/低价档。价格修改仅管理员登录后开放。</p>
     <div class="table-wrap"><table id="playerTable"><thead><tr><th>球员</th><th>系列</th><th>位置</th><th>市场参考</th><th>比赛薪资</th><th>操作</th></tr></thead><tbody></tbody></table></div>
   </div>
@@ -85,5 +85,5 @@
 </section>
 </main>
 <footer>津门鸭脖俱乐部球员薪资软件 · V3</footer>
-<script src="script.js"></script>
+<script src="script.js?v=4"></script>
 </body></html>
